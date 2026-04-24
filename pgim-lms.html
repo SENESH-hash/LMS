@@ -1,0 +1,1580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PGIM LMS — Learning Management System</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Segoe UI', system-ui, sans-serif; background: #F9FAFB; }
+  input, select, textarea { font-family: inherit; }
+  button { font-family: inherit; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  .fade-in { animation: fadeIn 0.3s ease; }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #f1f1f1; }
+  ::-webkit-scrollbar-thumb { background: #8B000040; border-radius: 3px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th { padding: 10px 14px; text-align: left; color: #8B0000; font-weight: 700; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; background: rgba(139,0,0,0.05); border-bottom: 2px solid rgba(139,0,0,0.13); }
+  td { padding: 12px 14px; color: #374151; border-bottom: 1px solid #F3F4F6; }
+  tr:nth-child(even) td { background: #F9FAFB; }
+  .progress-bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .progress-bar-bg { flex: 1; background: #E5E7EB; border-radius: 999px; height: 7px; }
+  .progress-bar-fill { border-radius: 999px; height: 7px; transition: width 0.4s; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+// ─── Design System ────────────────────────────────────────────────────────────
+const C = {
+  crimson: "#8B0000", crimsonDark: "#5C0000", crimsonLight: "#B22222",
+  gold: "#C9922A", goldLight: "#E8B84B", goldPale: "#FEF3C7",
+  navy: "#1a1a2e", white: "#FFFFFF", cream: "#FFFDF7",
+  gray50: "#F9FAFB", gray100: "#F3F4F6", gray200: "#E5E7EB",
+  gray300: "#D1D5DB", gray400: "#9CA3AF", gray500: "#6B7280",
+  gray700: "#374151", gray800: "#1F2937",
+  green: "#15803D", greenBg: "#DCFCE7",
+  red: "#DC2626", redBg: "#FEE2E2",
+  blue: "#1D4ED8", blueBg: "#DBEAFE",
+  amber: "#B45309", amberBg: "#FEF3C7",
+};
+
+// ─── Synthetic Data ───────────────────────────────────────────────────────────
+const USERS = {
+  admin:    { id: "ADM-001", name: "Dr. Nayomi Perera",     role: "Admin",    title: "Senior Academic Registrar",             email: "n.perera@pgim.lk",       initials: "NP" },
+  examiner: { id: "EXM-001", name: "Dr. Kasun Jayawardena", role: "Examiner", title: "Senior Examiner — Internal Medicine",   email: "k.jayawardena@pgim.lk",  initials: "KJ" },
+  trainee:  { id: "TRN-001", name: "Dr. Amali Wijesinghe",  role: "Trainee",  title: "MD Trainee — Internal Medicine (Year 2)", email: "a.wijesinghe@pgim.lk", initials: "AW" },
+};
+
+const COURSES = [
+  { id: "C001", name: "MD in Internal Medicine",   code: "MED-MD-2024", seats: 15, enrolled: 12, status: "Open",   fee: 45000, duration: "3 Years" },
+  { id: "C002", name: "Diploma in Child Health",    code: "DCH-2024",    seats: 20, enrolled: 18, status: "Open",   fee: 25000, duration: "1 Year"  },
+  { id: "C003", name: "MSc in Medical Education",  code: "MEd-MSc-2024", seats: 10, enrolled: 10, status: "Closed", fee: 60000, duration: "2 Years" },
+];
+
+const EXAMS = [
+  { id: "EX001", name: "MD Internal Medicine — Part I Theory",       course: "MD in Internal Medicine", courseId: "C001", date: "2026-06-15", venue: "Examination Hall A", candidates: 12, status: "Upcoming", fee: 5000 },
+  { id: "EX002", name: "Diploma in Child Health — Final Assessment", course: "Diploma in Child Health", courseId: "C002", date: "2026-05-20", venue: "Examination Hall B", candidates: 18, status: "Upcoming", fee: 3500 },
+];
+
+let PORTFOLIO_ENTRIES = [
+  { id: "P001", type: "Clinical Case",    title: "Management of Diabetic Ketoacidosis",    date: "2026-04-10", competency: "Clinical Reasoning",  status: "Signed Off",     feedback: "Excellent documentation. Demonstrates strong analytical thinking and evidence-based approach.", grade: "Excellent" },
+  { id: "P002", type: "Procedure",        title: "Central Venous Catheter Insertion",       date: "2026-04-15", competency: "Procedural Skills",   status: "Pending Review", feedback: "", grade: "" },
+  { id: "P003", type: "Teaching Session", title: "Lecture on Heart Failure Management",     date: "2026-04-18", competency: "Teaching & Learning", status: "Draft",          feedback: "", grade: "" },
+];
+
+let RESULTS = [
+  { id: "R001", candidate: "Dr. Amali Wijesinghe",  pgimId: "TRN-001", examId: "EX001", score: 72, grade: "Pass", published: false, appealed: false, appealText: "", appealStatus: null },
+  { id: "R002", candidate: "Dr. Ruwan Fernando",    pgimId: "TRN-002", examId: "EX001", score: 58, grade: "Fail", published: false, appealed: false, appealText: "", appealStatus: null },
+  { id: "R003", candidate: "Dr. Shalini Gunaratna", pgimId: "TRN-003", examId: "EX001", score: 81, grade: "Pass", published: false, appealed: false, appealText: "", appealStatus: null },
+];
+
+let AUDIT_LOG = [
+  { id: 1, user: "Dr. Amali Wijesinghe",  role: "Trainee",  action: "Logged in via SSO",                                          ip: "192.168.1.42", timestamp: "2026-04-22 09:15:33" },
+  { id: 2, user: "Dr. Amali Wijesinghe",  role: "Trainee",  action: "Submitted portfolio entry: DKA Case Management",             ip: "192.168.1.42", timestamp: "2026-04-22 09:32:11" },
+  { id: 3, user: "Dr. Kasun Jayawardena", role: "Examiner", action: "Logged in via SSO",                                          ip: "10.0.0.55",    timestamp: "2026-04-22 10:05:47" },
+  { id: 4, user: "Dr. Kasun Jayawardena", role: "Examiner", action: "Signed off portfolio entry P001 — DKA Case",                 ip: "10.0.0.55",    timestamp: "2026-04-22 10:18:22" },
+  { id: 5, user: "Dr. Nayomi Perera",     role: "Admin",    action: "Logged in via SSO",                                          ip: "172.16.0.10",  timestamp: "2026-04-22 11:00:01" },
+  { id: 6, user: "Dr. Nayomi Perera",     role: "Admin",    action: "Created exam session EX001 — MD Internal Medicine Part I",   ip: "172.16.0.10",  timestamp: "2026-04-22 11:14:55" },
+];
+
+// ─── App State ────────────────────────────────────────────────────────────────
+let APP = {
+  user: null,
+  nav: "dashboard",
+  toast: null,
+  toastTimeout: null,
+  showRoleSwitch: false,
+  prevRole: null,
+  // login screen state
+  loginSelected: null,
+  loginPhase: "select", // select | sso
+  loginLoading: false,
+  // modal state
+  modal: null,
+  modalData: {},
+};
+
+// ─── Utility: render ──────────────────────────────────────────────────────────
+function render() {
+  document.getElementById("app").innerHTML = buildApp();
+  attachEvents();
+}
+
+function ts() {
+  return new Date().toLocaleString("sv").replace("T", " ").slice(0, 19);
+}
+
+function addAudit(action) {
+  const u = APP.user || USERS.admin;
+  AUDIT_LOG.unshift({ id: AUDIT_LOG.length + 1, user: u.name, role: u.role, action, ip: "172.16.0.10", timestamp: ts() });
+}
+
+function showToast(msg, type = "success") {
+  APP.toast = { msg, type };
+  clearTimeout(APP.toastTimeout);
+  render();
+  APP.toastTimeout = setTimeout(() => { APP.toast = null; render(); }, 3200);
+}
+
+// ─── Primitives ───────────────────────────────────────────────────────────────
+function badge(text, color = "gray") {
+  const map = {
+    green:   { bg: C.greenBg,            text: C.green  },
+    red:     { bg: C.redBg,              text: C.red    },
+    amber:   { bg: C.amberBg,            text: C.amber  },
+    blue:    { bg: C.blueBg,             text: C.blue   },
+    gray:    { bg: C.gray100,            text: C.gray700},
+    crimson: { bg: "#FCE7E7",            text: C.crimson},
+    gold:    { bg: C.goldPale,           text: C.gold   },
+  };
+  const s = map[color] || map.gray;
+  return `<span style="background:${s.bg};color:${s.text};padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:700;letter-spacing:0.3px;display:inline-block;text-transform:uppercase">${text}</span>`;
+}
+
+function btn(id, label, variant = "primary", size = "md", disabled = false) {
+  const sizes = { sm: "6px 14px;font-size:12.5px", md: "10px 20px;font-size:14px", lg: "13px 28px;font-size:15.5px" };
+  const variants = {
+    primary:   `background:${C.crimson};color:${C.white}`,
+    gold:      `background:${C.gold};color:${C.white}`,
+    secondary: `background:transparent;color:${C.crimson};border:1.5px solid ${C.crimson}`,
+    ghost:     `background:${C.gray100};color:${C.gray700}`,
+    success:   `background:${C.green};color:${C.white}`,
+    danger:    `background:${C.red};color:${C.white}`,
+    navy:      `background:${C.navy};color:${C.white}`,
+  };
+  const dis = disabled ? "opacity:0.5;cursor:not-allowed;" : "cursor:pointer;";
+  return `<button data-action="${id}" style="border:none;border-radius:7px;${dis}font-family:inherit;font-weight:600;transition:all 0.15s;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:${sizes[size]};${variants[variant]}" ${disabled ? "disabled" : ""}>${label}</button>`;
+}
+
+function progressBar(pct) {
+  const fill = pct >= 90 ? C.red : pct >= 60 ? C.green : C.amber;
+  return `<div class="progress-bar-wrap"><div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${pct}%;background:${fill}"></div></div><span style="font-size:12px;color:${C.gray500};min-width:32px;text-align:right">${pct}%</span></div>`;
+}
+
+function card(content, style = "") {
+  return `<div style="background:${C.white};border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,0.07);border:1px solid ${C.gray200};padding:22px;${style}">${content}</div>`;
+}
+
+function statCard(label, value, icon, accent = C.crimson, sub = "") {
+  return card(`<div style="display:flex;align-items:center;gap:16px"><div style="width:48px;height:48px;border-radius:10px;background:${accent}22;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">${icon}</div><div><div style="font-size:26px;font-weight:800;color:${accent};line-height:1">${value}</div><div style="font-size:12.5px;color:${C.gray500};margin-top:3px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px">${label}</div>${sub ? `<div style="font-size:11.5px;color:${C.gray400};margin-top:2px">${sub}</div>` : ""}</div></div>`, "padding:18px 22px");
+}
+
+function sectionTitle(title, sub = "", actionHtml = "") {
+  return `<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px"><div><h2 style="margin:0;color:${C.crimson};font-size:21px;font-weight:800">${title}</h2>${sub ? `<p style="margin:5px 0 0;color:${C.gray500};font-size:13px">${sub}</p>` : ""}</div>${actionHtml}</div>`;
+}
+
+function tableHtml(headers, rows) {
+  const ths = headers.map(h => `<th>${h}</th>`).join("");
+  const trs = rows.map(row => `<tr>${row.map(cell => `<td>${cell ?? ""}</td>`).join("")}</tr>`).join("");
+  return `<div style="overflow-x:auto"><table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`;
+}
+
+function formInput(id, label, type = "text", value = "", placeholder = "", required = false, readonly = false) {
+  const req = required ? `<span style="color:${C.red}"> *</span>` : "";
+  const ro = readonly ? "readonly style=\"background:#F9FAFB\"" : "";
+  return `<div style="margin-bottom:14px"><label style="display:block;font-size:12.5px;font-weight:700;color:${C.gray700};margin-bottom:5px;text-transform:uppercase;letter-spacing:0.4px">${label}${req}</label><input id="${id}" type="${type}" value="${value.replace(/"/g, '&quot;')}" placeholder="${placeholder}" ${ro} style="width:100%;padding:10px 13px;border:1.5px solid ${C.gray200};border-radius:7px;font-size:13.5px;color:${C.gray800};outline:none;box-sizing:border-box;font-family:inherit" /></div>`;
+}
+
+function formSelect(id, label, options, value = "", required = false) {
+  const req = required ? `<span style="color:${C.red}"> *</span>` : "";
+  const opts = options.map(o => `<option value="${o.value}" ${o.value === value ? "selected" : ""}>${o.label}</option>`).join("");
+  return `<div style="margin-bottom:14px"><label style="display:block;font-size:12.5px;font-weight:700;color:${C.gray700};margin-bottom:5px;text-transform:uppercase;letter-spacing:0.4px">${label}${req}</label><select id="${id}" style="width:100%;padding:10px 13px;border:1.5px solid ${C.gray200};border-radius:7px;font-size:13.5px;color:${C.gray800};background:${C.white};outline:none;box-sizing:border-box;font-family:inherit">${opts}</select></div>`;
+}
+
+function formTextarea(id, label, value = "", placeholder = "", required = false) {
+  const req = required ? `<span style="color:${C.red}"> *</span>` : "";
+  return `<div style="margin-bottom:14px"><label style="display:block;font-size:12.5px;font-weight:700;color:${C.gray700};margin-bottom:5px;text-transform:uppercase;letter-spacing:0.4px">${label}${req}</label><textarea id="${id}" placeholder="${placeholder}" style="width:100%;padding:10px 13px;border:1.5px solid ${C.gray200};border-radius:7px;font-size:13.5px;color:${C.gray800};outline:none;box-sizing:border-box;font-family:inherit;min-height:90px;resize:vertical">${value}</textarea></div>`;
+}
+
+function modalWrap(title, content, wide = false) {
+  return `<div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px">
+    <div style="background:${C.white};border-radius:12px;width:100%;max-width:${wide ? 720 : 500}px;max-height:92vh;overflow-y:auto;box-shadow:0 12px 48px rgba(0,0,0,0.22)">
+      <div style="padding:18px 24px;border-bottom:1px solid ${C.gray200};display:flex;justify-content:space-between;align-items:center;background:${C.gray50};border-radius:12px 12px 0 0">
+        <h3 style="margin:0;color:${C.crimson};font-size:17px;font-weight:700">${title}</h3>
+        <button data-action="close-modal" style="background:none;border:none;font-size:20px;cursor:pointer;color:${C.gray400};line-height:1">✕</button>
+      </div>
+      <div style="padding:24px">${content}</div>
+    </div>
+  </div>`;
+}
+
+// ─── LOGIN SCREEN ─────────────────────────────────────────────────────────────
+function buildLogin() {
+  if (APP.loginPhase === "sso") {
+    return `<div style="min-height:100vh;background:linear-gradient(135deg,${C.crimsonDark} 0%,${C.crimson} 60%,#6B0000 100%);display:flex;align-items:center;justify-content:center;padding:20px">
+      ${card(`
+        <div style="text-align:center;padding:12px">
+          <div style="width:64px;height:64px;border-radius:50%;background:${C.goldPale};display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:30px">🔐</div>
+          <h2 style="color:${C.crimson};font-size:20px;margin-bottom:6px">PGIM Identity Provider</h2>
+          <p style="color:${C.gray500};font-size:13px;margin-bottom:4px">Simulated SSO Redirect (OIDC / OpenID Connect)</p>
+          <div style="background:${C.amberBg};border:1px solid ${C.gold}50;border-radius:8px;padding:10px;font-size:12px;color:${C.amber};margin-bottom:20px;text-align:left">
+            ⚠&nbsp; This is a mocked OIDC redirect — no real authentication occurs
+          </div>
+          <div style="background:${C.gray50};border:1px solid ${C.gray200};border-radius:8px;padding:14px;font-size:12.5px;text-align:left;margin-bottom:20px">
+            <div style="margin-bottom:6px"><strong>IdP Endpoint:</strong> idp.pgim.lk/oauth2/authorize</div>
+            <div style="margin-bottom:6px"><strong>Flow:</strong> Authorization Code (PKCE)</div>
+            <div style="margin-bottom:6px"><strong>Scope:</strong> openid profile email roles</div>
+            <div style="margin-bottom:6px"><strong>Redirect URI:</strong> lms.pgim.lk/auth/callback</div>
+            <div><strong>Role:</strong> <span style="color:${C.crimson};font-weight:700">${(APP.loginSelected || "").toUpperCase()}</span></div>
+          </div>
+          ${btn("sso-complete", APP.loginLoading ? "Authenticating…" : "✓ Authorize &amp; Return to LMS", "primary", "lg")}
+          <p style="font-size:11px;color:${C.gray300};margin-top:12px">PoC Demo — Synthetic Data Only · PGIM LMS v1.0</p>
+        </div>
+      `, "max-width:440px;width:100%")}
+    </div>`;
+  }
+
+  return `<div style="min-height:100vh;background:linear-gradient(150deg,${C.crimsonDark} 0%,${C.crimson} 55%,#7A0000 100%);display:flex;align-items:center;justify-content:center;padding:20px">
+    <div style="max-width:440px;width:100%">
+
+      <!-- Header -->
+      <div style="text-align:center;margin-bottom:32px">
+        <div style="width:90px;height:90px;border-radius:50%;background:${C.goldPale};border:3px solid ${C.gold};box-shadow:0 0 0 4px rgba(201,146,42,0.25);display:flex;align-items:center;justify-content:center;font-size:40px;margin:0 auto 16px">🏥</div>
+        <h1 style="color:${C.white};font-size:24px;margin:0;font-weight:800">PGIM Learning Management System</h1>
+        <p style="color:rgba(255,255,255,0.65);font-size:13px;margin:8px 0 0">Postgraduate Institute of Medicine — Sri Lanka</p>
+      </div>
+
+      <!-- Login Card -->
+      ${card(`
+        <h3 style="margin:0 0 20px;color:${C.crimson};font-size:17px;font-weight:800;text-align:center">Sign In to Your Account</h3>
+
+        <!-- Email -->
+        <div style="margin-bottom:16px">
+          <label style="display:block;font-size:12px;font-weight:700;color:${C.gray700};margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px">Email Address</label>
+          <input id="login-email" type="email" placeholder="yourname@pgim.lk"
+            style="width:100%;padding:12px 14px;border:1.5px solid ${C.gray200};border-radius:8px;font-size:14px;color:${C.gray800};outline:none;box-sizing:border-box;font-family:inherit" />
+        </div>
+
+        <!-- Password -->
+        <div style="margin-bottom:10px">
+          <label style="display:block;font-size:12px;font-weight:700;color:${C.gray700};margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px">Password</label>
+          <input id="login-password" type="password" placeholder="••••••••"
+            style="width:100%;padding:12px 14px;border:1.5px solid ${C.gray200};border-radius:8px;font-size:14px;color:${C.gray800};outline:none;box-sizing:border-box;font-family:inherit" />
+        </div>
+
+        <!-- Error message -->
+        <div id="login-error" style="display:none;background:${C.redBg};color:${C.red};padding:10px 14px;border-radius:7px;font-size:13px;margin-bottom:14px;font-weight:600">
+          ❌ Wrong email or password. Please try again.
+        </div>
+
+        <!-- Sign In Button -->
+        <button id="login-btn" data-action="real-login"
+          style="width:100%;padding:13px;background:${C.crimson};color:${C.white};border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;margin-top:8px;font-family:inherit">
+          Sign In →
+        </button>
+
+        <!-- Hint -->
+        <div style="margin-top:20px;background:${C.gray50};border-radius:8px;padding:14px;font-size:12px;color:${C.gray500}">
+          <div style="font-weight:700;margin-bottom:8px;color:${C.gray700}">Demo Credentials:</div>
+          <div style="margin-bottom:4px">🛡️ Admin &nbsp;&nbsp;&nbsp;→ admin@pgim.lk / Admin@1234</div>
+          <div style="margin-bottom:4px">📋 Examiner → examiner@pgim.lk / Examiner@1234</div>
+          <div>🎓 Trainee &nbsp;→ trainee@pgim.lk / Trainee@1234</div>
+        </div>
+      `, "padding:28px")}
+
+      <p style="text-align:center;color:rgba(255,255,255,0.3);font-size:11px;margin-top:16px">
+        Role-Based Access Control (RBAC) · PGIM LMS PoC · 2026
+      </p>
+    </div>
+  </div>`;
+}
+
+// ─── SHELL ────────────────────────────────────────────────────────────────────
+function buildShell(content) {
+  const u = APP.user;
+  const roleKey = u.role.toLowerCase();
+  const roleColor = { admin: C.crimson, examiner: C.gold, trainee: C.green }[roleKey];
+  const roleBadge = { admin: "crimson", examiner: "gold", trainee: "green" }[roleKey];
+
+  const navMap = {
+    admin: [
+  { k: "dashboard",   label: "Dashboard",          icon: "📊" },
+  { k: "admissions",  label: "Admissions",          icon: "📝" },
+  { k: "exams",       label: "Examinations",        icon: "📄" },
+  { k: "reports",     label: "Reports & Analytics", icon: "📈" },
+  { k: "audit",       label: "Audit Log",           icon: "🔍" },
+  { k: "assignments", label: "Assignments",         icon: "📎" },  // ← ADD THIS
+  { k: "switchrole",  label: "Switch Role",         icon: "⇄", special: true },
+],
+    examiner: [
+      { k: "dashboard",        label: "Dashboard",         icon: "📊" },
+      { k: "portfolio-review", label: "Portfolio Review",  icon: "📋" },
+      { k: "exams",            label: "My Exams",          icon: "📄" },
+    ],
+    trainee: [
+  { k: "dashboard",   label: "Dashboard",            icon: "📊" },
+  { k: "courses",     label: "Course Registration",  icon: "📚" },
+  { k: "portfolio",   label: "e-Portfolio / Logbook", icon: "📁" },
+  { k: "exams",       label: "Examinations",          icon: "📄" },
+  { k: "assignments", label: "Assignments",           icon: "📎" },  // ← ADD THIS
+],
+  };
+
+  const navItems = (navMap[roleKey] || []).map(item => {
+    const active = APP.nav === item.k;
+    return `<div data-action="nav" data-nav="${item.k}" style="padding:11px 18px;cursor:pointer;display:flex;align-items:center;gap:11px;background:${active ? "rgba(255,255,255,0.13)" : "transparent"};border-left:3px solid ${active ? C.gold : "transparent"};color:${active ? C.white : item.special ? C.goldLight : "rgba(255,255,255,0.6)"};font-size:13.5px;transition:all 0.13s;margin-bottom:1px">
+      <span style="font-size:16px">${item.icon}</span><span>${item.label}</span>
+    </div>`;
+  }).join("");
+
+  const returnBanner = APP.prevRole === "admin" ? `<div style="position:fixed;top:0;left:0;right:0;z-index:3000;background:${C.crimson};color:${C.white};padding:8px 20px;display:flex;align-items:center;justify-content:center;gap:16px;font-size:13.5px;font-weight:600">
+    <span>👁 Viewing as <strong>${u.role}</strong> — Admin role switch mode</span>
+    ${btn("return-admin", "← Return to Admin", "ghost", "sm")}
+  </div>` : "";
+
+  return `${returnBanner}
+  <div style="display:flex;min-height:100vh;background:${C.gray50};font-family:'Segoe UI',system-ui,sans-serif;margin-top:${APP.prevRole === "admin" ? "36px" : "0"}">
+    <!-- Sidebar -->
+    <div style="width:248px;background:${C.crimsonDark};flex-shrink:0;display:flex;flex-direction:column;box-shadow:2px 0 12px rgba(0,0,0,0.15)">
+      <div style="padding:20px 18px;border-bottom:1px solid rgba(255,255,255,0.1)">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:40px;height:40px;border-radius:50%;background:${C.goldPale};border:2px solid ${C.gold};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🏥</div>
+          <div>
+            <div style="color:${C.white};font-weight:800;font-size:14.5px;line-height:1.2">PGIM LMS</div>
+            <div style="color:rgba(255,255,255,0.45);font-size:10.5px">PoC Demo · 2026</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.1)">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:38px;height:38px;border-radius:50%;background:${roleColor};display:flex;align-items:center;justify-content:center;color:${C.white};font-weight:800;font-size:13px;flex-shrink:0">${u.initials}</div>
+          <div style="overflow:hidden">
+            <div style="color:${C.white};font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.name}</div>
+            <div style="margin-top:3px">${badge(u.role, roleBadge)}</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:8px;line-height:1.4">${u.title}</div>
+      </div>
+      <nav style="flex:1;padding:10px 0;overflow-y:auto">${navItems}</nav>
+      <div style="padding:14px 18px;border-top:1px solid rgba(255,255,255,0.1)">
+        <div data-action="logout" style="padding:9px 14px;border-radius:7px;background:rgba(220,38,38,0.2);color:#FCA5A5;font-size:13px;cursor:pointer;text-align:center;font-weight:600">← Sign Out</div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column">
+      <div style="background:${C.white};border-bottom:1px solid ${C.gray200};padding:12px 28px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,0.05)">
+        <div style="display:flex;align-items:center;gap:16px">
+          <div style="width:32px;height:32px;border-radius:50%;background:${C.goldPale};display:flex;align-items:center;justify-content:center;font-size:16px">🏥</div>
+          <div>
+            <span style="font-size:14px;font-weight:700;color:${C.crimson}">Postgraduate Institute of Medicine</span>
+            <span style="font-size:12px;color:${C.gray400};margin-left:12px">Learning Management System</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px">
+          <span style="font-size:12px;color:${C.amber};background:${C.amberBg};padding:4px 10px;border-radius:6px;font-weight:600">⚠ Synthetic Data — PoC Only</span>
+          <span style="font-size:12px;color:${C.gray400}">📅 Thu, 23 Apr 2026</span>
+        </div>
+      </div>
+      <div style="flex:1;padding:26px 28px" class="fade-in">${content}</div>
+    </div>
+  </div>`;
+}
+
+// ─── ROLE SWITCH MODAL ────────────────────────────────────────────────────────
+function buildRoleSwitchModal() {
+  const opts = [
+    { key: "admin",    label: "Administrator",        icon: "🛡️" },
+    { key: "examiner", label: "Examiner / Supervisor", icon: "📋" },
+    { key: "trainee",  label: "Trainee / Candidate",   icon: "🎓" },
+  ].filter(o => o.key !== APP.user.role.toLowerCase());
+
+  const optCards = opts.map(o => {
+    const sel = APP.modalData.switchTarget === o.key;
+    return `<div data-action="switch-target" data-role="${o.key}" style="border:2px solid ${sel ? C.crimson : C.gray200};border-radius:8px;padding:12px 16px;cursor:pointer;background:${sel ? "#FCE7E7" : C.white};display:flex;align-items:center;gap:12px;transition:all 0.13s">
+      <span style="font-size:24px">${o.icon}</span>
+      <span style="font-weight:700;color:${sel ? C.crimson : C.gray800}">${o.label}</span>
+      ${sel ? `<span style="margin-left:auto;color:${C.crimson};font-weight:700">✓</span>` : ""}
+    </div>`;
+  }).join("");
+
+  const target = APP.modalData.switchTarget;
+  const targetLabel = target ? opts.find(o => o.key === target)?.label : "—";
+
+  const content = `
+    <p style="color:${C.gray500};font-size:13px;margin-top:0">As Administrator, you can switch to another role context to view the system from their perspective.</p>
+    <div style="background:${C.amberBg};border-radius:8px;padding:12px;font-size:13px;color:${C.amber};margin-bottom:18px">
+      🔑 Current role: <strong>${APP.user.role}</strong> · Token re-issued on switch (simulated)
+    </div>
+    <div style="display:grid;gap:10px;margin-bottom:20px">${optCards}</div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      ${btn("close-modal", "Cancel", "ghost")}
+      ${btn("execute-switch", `Switch to ${targetLabel}`, "primary", "md", !target)}
+    </div>`;
+  return modalWrap("Switch Active Role (Admin Privilege)", content);
+}
+
+// ─── ADMIN: Dashboard ─────────────────────────────────────────────────────────
+function buildAdminDashboard() {
+  const stats = `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px">
+    ${statCard("Total Trainees", "47", "🎓", C.crimson)}
+    ${statCard("Active Courses", "2", "📚", C.gold, "1 Closed")}
+    ${statCard("Upcoming Exams", "2", "📋", C.green)}
+    ${statCard("Pending Appeals", "1", "⚠️", C.red)}
+  </div>`;
+
+  const quickActions = [
+    { label: "Open Registration for Course", icon: "📝", nav: "admissions" },
+    { label: "Create Exam Session",          icon: "📋", nav: "exams"      },
+    { label: "View Reports & Analytics",     icon: "📈", nav: "reports"    },
+    { label: "View Audit Log",               icon: "🔍", nav: "audit"      },
+    { label: "Switch to Another Role",       icon: "⇄",  nav: "switchrole" },
+  ].map(a => `<div data-action="nav" data-nav="${a.nav}" style="display:flex;align-items:center;gap:12px;padding:11px 14px;background:${C.gray50};border-radius:8px;cursor:pointer;border:1px solid ${C.gray200};transition:all 0.13s">
+    <span>${a.icon}</span><span style="font-size:13.5px;color:${C.gray800};font-weight:600;flex:1">${a.label}</span><span style="color:${C.gray300}">›</span>
+  </div>`).join("");
+
+  const recentActivity = AUDIT_LOG.slice(0, 5).map((log, i) => `
+    <div style="padding-bottom:10px;margin-bottom:10px;${i < 4 ? `border-bottom:1px solid ${C.gray100}` : ""};font-size:12.5px">
+      <div style="color:${C.gray800};font-weight:600">${log.action}</div>
+      <div style="color:${C.gray400};margin-top:2px">${log.user} · ${log.timestamp}</div>
+    </div>`).join("") + `<div data-action="nav" data-nav="audit" style="color:${C.crimson};font-size:13px;cursor:pointer;font-weight:700;margin-top:4px">View full audit log →</div>`;
+
+  return sectionTitle("Administrator Dashboard", "System overview — PGIM Learning Management System") + stats +
+    `<div style="display:grid;grid-template-columns:1.4fr 1fr;gap:18px">
+      ${card(`<h3 style="margin:0 0 16px;color:${C.crimson};font-size:15px;font-weight:700">Quick Actions</h3><div style="display:grid;gap:10px">${quickActions}</div>`)}
+      ${card(`<h3 style="margin:0 0 14px;color:${C.crimson};font-size:15px;font-weight:700">Recent Activity</h3>${recentActivity}`)}
+    </div>`;
+}
+
+function buildAdminAssignments() {
+  return sectionTitle("Assignments / Resources", "Upload PDFs for trainees") + `
+    <div style="margin-bottom:20px">
+      <input type="file" id="pdf-file-input" accept="application/pdf" style="display:none"
+  onchange="document.getElementById('pdf-selected-name').textContent = this.files[0]?.name || ''">
+      <button onclick="document.getElementById('pdf-file-input').click()" 
+              style="padding:8px 16px;background:#c0392b;color:white;border:none;border-radius:6px;cursor:pointer">
+        📎 Select PDF to Upload
+      </button>
+      <span id="pdf-selected-name" style="margin-left:12px;color:#555"></span>
+      <button id="pdf-upload-btn" onclick="adminUploadPDF()" 
+              style="margin-left:12px;padding:8px 16px;background:#27ae60;color:white;border:none;border-radius:6px;cursor:pointer">
+        ⬆ Upload
+      </button>
+    </div>
+    <div id="admin-doc-list">Loading...</div>
+  `;
+}
+
+// ─── ADMIN: Admissions ────────────────────────────────────────────────────────
+function buildAdminAdmissions() {
+  const md = APP.modalData;
+
+  const courseFee = COURSES.find(c => c.id === (md.course || "C001"))?.fee || 0;
+  const courseName = COURSES.find(c => c.id === (md.course || "C001"))?.name || "";
+
+  const courseRows = COURSES.map(c => {
+    const pct = Math.round((c.enrolled / c.seats) * 100);
+    return [
+      `<span style="font-weight:700;color:${C.gray800}">${c.name}</span>`,
+      `<code style="font-size:12px;background:${C.gray100};padding:2px 6px;border-radius:4px">${c.code}</code>`,
+      c.duration,
+      c.fee.toLocaleString(),
+      `<span style="font-weight:700;color:${c.enrolled === c.seats ? C.red : C.green}">${c.enrolled} / ${c.seats}</span>`,
+      progressBar(pct),
+      badge(c.status, c.status === "Open" ? "green" : "red"),
+      c.status === "Open" ? btn(`open-reg-${c.id}`, "Register", "primary", "sm") : `<span style="color:${C.gray400};font-size:12px">Closed</span>`,
+    ];
+  });
+
+  let modalHtml = "";
+
+  if (APP.modal === "adm-step1") {
+    const openCourses = COURSES.filter(c => c.status === "Open").map(c => ({ value: c.id, label: c.name }));
+    modalHtml = modalWrap("Step 1 of 3 — Candidate Personal Details", `
+      <div style="background:${C.blueBg};border-radius:7px;padding:10px;font-size:12.5px;color:${C.blue};margin-bottom:16px">
+        Registering for: <strong>${courseName}</strong> &nbsp;|&nbsp; Fee: LKR ${courseFee.toLocaleString()}
+      </div>
+      ${formSelect("adm-course", "Select Course", openCourses, md.course || "C001", true)}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        ${formInput("adm-first", "First Name", "text", md.firstName || "", "e.g. Amali", true)}
+        ${formInput("adm-last", "Last Name", "text", md.lastName || "", "e.g. Wijesinghe", true)}
+      </div>
+      ${formInput("adm-email", "Email Address", "email", md.email || "", "doctor@hospital.lk", true)}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        ${formInput("adm-nic", "NIC Number", "text", md.nic || "", "9XXXXXXXXV", true)}
+        ${formInput("adm-slmc", "SLMC Reg. No.", "text", md.slmc || "", "SLMC-XXXXX", true)}
+      </div>
+      ${formInput("adm-phone", "Phone Number", "text", md.phone || "", "+94 7X XXX XXXX")}
+      <div style="background:${C.amberBg};border-radius:7px;padding:10px;font-size:12.5px;color:${C.amber};margin-bottom:16px">
+        ✓ Eligibility check passed — candidate meets course prerequisites
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        ${btn("close-modal", "Cancel", "ghost")}
+        ${btn("adm-next-2", "Next: Payment →", "primary")}
+      </div>`);
+  }
+
+  if (APP.modal === "adm-step2") {
+    modalHtml = modalWrap("Step 2 of 3 — Mock Payment Gateway Redirect", `
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-size:48px;margin-bottom:8px">💳</div>
+        <div style="background:${C.amberBg};border-radius:8px;padding:10px;font-size:12px;color:${C.amber};margin-bottom:4px">
+          ⚠ SIMULATED REDIRECT — Redirecting to Payment Gateway (PayHere / IPG)
+        </div>
+        <p style="color:${C.gray500};font-size:12.5px">No real transaction is processed</p>
+      </div>
+      <div style="background:${C.gray50};border-radius:9px;padding:16px;margin-bottom:16px;font-size:13.5px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span>Course</span><strong>${courseName}</strong></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span>Candidate</span><strong>Dr. ${md.firstName} ${md.lastName}</strong></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span>NIC</span><strong>${md.nic}</strong></div>
+        <div style="display:flex;justify-content:space-between;padding-top:10px;border-top:1px solid ${C.gray200}"><span style="font-weight:700">Total Due</span><strong style="color:${C.crimson};font-size:18px">LKR ${courseFee.toLocaleString()}</strong></div>
+      </div>
+      ${formInput("p-card", "Card Number", "text", "4111 1111 1111 1111", "", false, true)}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        ${formInput("p-exp", "Expiry Date", "text", "12/28", "", false, true)}
+        ${formInput("p-cvv", "CVV", "text", "•••", "", false, true)}
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        ${btn("adm-back-1", "← Back", "ghost")}
+        ${btn("adm-confirm-pay", "✓ Confirm Payment", "success")}
+      </div>`);
+  }
+
+  if (APP.modal === "adm-step3") {
+    const ref = "PAY-" + Date.now().toString().slice(-8);
+    const pgimId = "PGIM-2026-" + Math.floor(1000 + Math.random() * 9000);
+    modalHtml = modalWrap("Step 3 of 3 — Enrolment Confirmed", `
+      <div style="text-align:center">
+        <div style="font-size:64px;margin-bottom:12px">✅</div>
+        <h3 style="color:${C.green};margin:0 0 8px">Registration Successful!</h3>
+        <p style="color:${C.gray500};font-size:13.5px">Dr. ${md.firstName} ${md.lastName} has been enrolled in <strong>${courseName}</strong>.</p>
+        <div style="background:${C.greenBg};border-radius:9px;padding:16px;text-align:left;font-size:13.5px;margin-bottom:20px">
+          <div style="margin-bottom:6px">📧 Confirmation email sent to: <strong>${md.email || "candidate@pgim.lk"}</strong></div>
+          <div style="margin-bottom:6px">🪪 PGIM ID assigned: <strong>${pgimId}</strong></div>
+          <div style="margin-bottom:6px">💳 Payment ref: <strong>${ref}</strong></div>
+          <div>🎟 Admission card: <strong>Ready for download</strong></div>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:center">
+          ${btn("adm-download", "⬇ Download Admission Card", "primary")}
+          ${btn("close-modal", "Close", "ghost")}
+        </div>
+      </div>`);
+  }
+
+  return sectionTitle("Admissions &amp; Registration",
+    "Journey 2: Candidate creation, eligibility validation, mock payment, enrolment confirmation",
+    btn("open-reg-new", "+ Register New Candidate", "primary")) +
+
+    card(`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="margin:0;color:${C.crimson};font-size:15px;font-weight:700">Active Courses &amp; Enrolment</h3>
+        <div style="display:flex;gap:8px">
+          ${btn("export-csv-adm", "⬇ Export CSV", "ghost", "sm")}
+          ${btn("export-pdf-adm", "⬇ Export PDF", "ghost", "sm")}
+        </div>
+      </div>
+      ${tableHtml(["Course","Code","Duration","Fee (LKR)","Enrolled / Seats","Fill Rate","Status","Action"], courseRows)}`,
+    "margin-bottom:20px") + modalHtml;
+}
+
+// ─── ADMIN: Examinations ──────────────────────────────────────────────────────
+function buildAdminExams() {
+  let modalHtml = "";
+  const md = APP.modalData;
+
+  const examCards = EXAMS.map(ex => card(`
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+      <div>
+        <h3 style="margin:0 0 5px;color:${C.gray800};font-size:16px;font-weight:700">${ex.name}</h3>
+        <div style="font-size:13px;color:${C.gray500}">📅 ${ex.date} &nbsp;·&nbsp; 📍 ${ex.venue} &nbsp;·&nbsp; 👥 ${ex.candidates} candidates &nbsp;·&nbsp; 💳 LKR ${ex.fee.toLocaleString()}</div>
+      </div>
+      ${badge(ex.status, "blue")}
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      ${btn("send-admission-"+ex.id, "📧 Send Admission Cards", "ghost", "sm")}
+      ${btn("manage-results", "📊 Manage Results &amp; Appeals", "primary", "sm")}
+    </div>`)).join("");
+
+  if (APP.modal === "results") {
+    const ex001 = RESULTS.filter(r => r.examId === "EX001");
+    const allPub = ex001.every(r => r.published);
+    const anyDraft = ex001.some(r => !r.published);
+    const rows = ex001.map(r => [
+      `<code style="font-size:12px">${r.pgimId}</code>`,
+      `<span style="font-weight:600">${r.candidate}</span>`,
+      `<span style="font-weight:700;color:${r.score >= 60 ? C.green : C.red}">${r.score}%</span>`,
+      badge(r.grade, r.grade === "Pass" ? "green" : "red"),
+      badge(r.published ? "Published" : "Draft", r.published ? "green" : "amber"),
+      r.appealed ? badge(r.appealStatus === "Accepted" ? "Accepted" : r.appealStatus === "Rejected" ? "Rejected" : "Pending", r.appealStatus === "Accepted" ? "green" : r.appealStatus === "Rejected" ? "red" : "amber") : `<span style="color:${C.gray400}">—</span>`,
+      (r.appealed && r.appealStatus === null) ? btn("review-appeal-"+r.id, "Review", "primary", "sm") : "",
+    ]);
+    modalHtml = modalWrap("Results Management — MD Internal Medicine Part I", `
+      <div style="margin-bottom:16px">
+        ${anyDraft ? `<div style="background:${C.amberBg};border-radius:7px;padding:10px;font-size:13px;color:${C.amber};margin-bottom:12px">⚠ Results are in DRAFT — publish to make visible to candidates</div>` : ""}
+        ${allPub ? `<div style="background:${C.greenBg};border-radius:7px;padding:10px;font-size:13px;color:${C.green};margin-bottom:12px">✓ All results published — candidates can now view their results</div>` : ""}
+      </div>
+      ${tableHtml(["PGIM ID","Candidate","Score","Grade","Status","Appeal","Actions"], rows)}
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px">
+        ${btn("close-modal", "Close", "ghost")}
+        ${btn("publish-all", "✓ Publish All Results", "success", "md", allPub)}
+      </div>`, true);
+  }
+
+  if (APP.modal === "appeal-review") {
+    const r = md.appealResult;
+    if (r) {
+      modalHtml = modalWrap("Appeal Review", `
+        <div style="background:${C.gray50};border-radius:8px;padding:14px;margin-bottom:16px;font-size:13.5px">
+          <div style="margin-bottom:6px"><strong>Candidate:</strong> ${r.candidate}</div>
+          <div style="margin-bottom:6px"><strong>Original Score:</strong> ${r.score}% — ${r.grade}</div>
+          <div><strong>Appeal Grounds:</strong> "${r.appealText || "I believe my script was not marked correctly for Question 4."}"</div>
+        </div>
+        ${formSelect("appeal-decision", "Decision", [
+          { value: "", label: "— Select decision —" },
+          { value: "Accepted", label: "Accept Appeal (revise score)" },
+          { value: "Rejected", label: "Reject Appeal (uphold result)" },
+        ], md.appealDecision || "")}
+        ${formTextarea("appeal-response", "Official Response to Candidate", md.appealResponse || "", "Enter the official response...")}
+        <div style="display:flex;gap:10px;justify-content:flex-end">
+          ${btn("back-to-results", "Cancel", "ghost")}
+          ${btn("reject-appeal", "Reject Appeal", "danger")}
+          ${btn("accept-appeal", "Accept Appeal", "success")}
+        </div>`);
+    }
+  }
+
+  if (APP.modal === "create-exam") {
+    modalHtml = modalWrap("Create New Examination Session", `
+      ${formSelect("ex-course", "Course", COURSES.map(c => ({ value: c.id, label: c.name })), md.courseId || "C001", true)}
+      ${formInput("ex-name", "Examination Name", "text", md.name || "", "e.g. Part I Theory Paper — June 2026", true)}
+      ${formInput("ex-date", "Date", "date", md.date || "", "", true)}
+      ${formInput("ex-venue", "Venue", "text", md.venue || "", "e.g. Examination Hall A", true)}
+      ${formInput("ex-fee", "Registration Fee (LKR)", "number", md.fee || "", "5000")}
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        ${btn("close-modal", "Cancel", "ghost")}
+        ${btn("create-exam-confirm", "Create Session", "primary")}
+      </div>`);
+  }
+
+  return sectionTitle("Examination Management",
+    "Journey 4: Session creation, results publication, appeal handling",
+    btn("create-exam-open", "+ Create Exam Session", "primary")) +
+    `<div style="display:grid;gap:18px;margin-bottom:20px">${examCards}</div>` + modalHtml;
+}
+
+// ─── ADMIN: Reports ───────────────────────────────────────────────────────────
+function buildAdminReports() {
+  const active = APP.modalData.reportTab || "enrolment";
+  const tabs = [
+    { k: "enrolment", label: "Enrolment Summary", icon: "📊" },
+    { k: "examindex",  label: "Exam Index List",   icon: "📋" },
+    { k: "passrate",   label: "Pass Rate Report",  icon: "📈" },
+    { k: "portfolio",  label: "Portfolio Completion", icon: "📁" },
+  ];
+
+  const passed = RESULTS.filter(r => r.grade === "Pass").length;
+  const passRate = Math.round((passed / RESULTS.length) * 100);
+
+  const portfolioData = [
+    { trainee: "Dr. Amali Wijesinghe",  pgimId: "TRN-001", course: "MD Internal Medicine",    total: 8,  signedOff: 6,  pct: 75  },
+    { trainee: "Dr. Ruwan Fernando",    pgimId: "TRN-002", course: "MD Internal Medicine",    total: 5,  signedOff: 3,  pct: 60  },
+    { trainee: "Dr. Shalini Gunaratna", pgimId: "TRN-003", course: "Diploma in Child Health", total: 12, signedOff: 12, pct: 100 },
+    { trainee: "Dr. Pradeep Mendis",    pgimId: "TRN-004", course: "Diploma in Child Health", total: 9,  signedOff: 5,  pct: 56  },
+  ];
+  const examIndex = [
+    { idx: "2026/MED/001", name: "Dr. Amali Wijesinghe",  exam: "MD Int. Medicine Pt. I",      date: "2026-06-15", admitted: true  },
+    { idx: "2026/MED/002", name: "Dr. Ruwan Fernando",    exam: "MD Int. Medicine Pt. I",      date: "2026-06-15", admitted: true  },
+    { idx: "2026/MED/003", name: "Dr. Shalini Gunaratna", exam: "MD Int. Medicine Pt. I",      date: "2026-06-15", admitted: false },
+    { idx: "2026/DCH/001", name: "Dr. Pradeep Mendis",    exam: "Diploma Child Health Final",  date: "2026-05-20", admitted: true  },
+  ];
+
+  let tableContent = "";
+  if (active === "enrolment") {
+    tableContent = tableHtml(["Course Name","Code","Enrolled","Seats","Fill Rate","Status","Drill-down"],
+      COURSES.map(c => {
+        const pct = Math.round((c.enrolled / c.seats) * 100);
+        return [
+          `<span style="font-weight:700">${c.name}</span>`,
+          `<code style="font-size:12px;background:${C.gray100};padding:2px 6px;border-radius:4px">${c.code}</code>`,
+          c.enrolled, c.seats,
+          `<div style="min-width:130px">${progressBar(pct)}</div>`,
+          badge(c.status, c.status === "Open" ? "green" : "red"),
+          btn("drilldown-"+c.id, "View →", "ghost", "sm"),
+        ];
+      }));
+  } else if (active === "passrate") {
+    tableContent = tableHtml(["Examination","Appeared","Passed","Failed","Pass Rate"], [
+      ["MD Internal Medicine — Part I", RESULTS.filter(r=>r.examId==="EX001").length, RESULTS.filter(r=>r.examId==="EX001"&&r.grade==="Pass").length, RESULTS.filter(r=>r.examId==="EX001"&&r.grade==="Fail").length, badge(`${passRate}%`, passRate >= 75 ? "green" : "amber")],
+      ["Diploma in Child Health — Final", 18, 15, 3, badge("83%", "green")],
+    ]);
+  } else if (active === "examindex") {
+    tableContent = tableHtml(["Index No.","Candidate","Examination","Date","Admission Card"],
+      examIndex.map(r => [
+        `<code style="font-family:monospace;font-size:12px">${r.idx}</code>`,
+        `<span style="font-weight:600">${r.name}</span>`,
+        r.exam, r.date,
+        r.admitted ? badge("Issued","green") : badge("Pending","amber"),
+      ]));
+  } else if (active === "portfolio") {
+    tableContent = tableHtml(["Trainee","PGIM ID","Course","Total Entries","Signed Off","Completion"],
+      portfolioData.map(r => [
+        `<span style="font-weight:600">${r.trainee}</span>`,
+        `<code style="font-size:12px">${r.pgimId}</code>`,
+        r.course, r.total, r.signedOff,
+        `<div style="min-width:120px">${progressBar(r.pct)}</div>`,
+      ]));
+  }
+
+  const tabHtml = tabs.map(t => `<div data-action="report-tab" data-tab="${t.k}" style="padding:9px 16px;border-radius:8px;cursor:pointer;background:${active===t.k?C.crimson:C.white};color:${active===t.k?C.white:C.gray700};border:1.5px solid ${active===t.k?C.crimson:C.gray200};font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px;transition:all 0.13s">${t.icon} ${t.label}</div>`).join("");
+
+  let modalHtml = "";
+  if (APP.modal === "drilldown") {
+    const c = APP.modalData.drilldownCourse;
+    if (c) {
+      modalHtml = modalWrap(`Drill-down: ${c.name}`, `
+        <p style="color:${C.gray500};font-size:13px">Showing enrolled candidates for <strong>${c.name}</strong></p>
+        ${tableHtml(["PGIM ID","Full Name","Enrolled Date","Status","Fees Paid"], [
+          ["PGIM-2026-1001", "Dr. Amali Wijesinghe",  "2026-01-15", badge("Active","green"),    badge("Paid","green")],
+          ["PGIM-2026-1002", "Dr. Ruwan Fernando",    "2026-01-18", badge("Active","green"),    badge("Paid","green")],
+          ["PGIM-2026-1003", "Dr. Shalini Gunaratna", "2026-01-20", badge("On Leave","amber"),  badge("Paid","green")],
+        ])}
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+          ${btn("drilldown-csv", "⬇ CSV", "ghost", "sm")}
+          ${btn("drilldown-pdf", "⬇ PDF", "ghost", "sm")}
+          ${btn("close-modal", "Close", "ghost", "sm")}
+        </div>`, true);
+    }
+  }
+
+  return sectionTitle("Reports &amp; Analytics", "Journey 5: Operational reports with summary, drill-down and CSV/PDF export") +
+    `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px">
+      ${statCard("Total Enrolled", COURSES.reduce((a,c)=>a+c.enrolled,0), "🎓", C.crimson)}
+      ${statCard("Exam Sessions", EXAMS.length, "📋", C.gold)}
+      ${statCard("Overall Pass Rate", `${passRate}%`, "✅", C.green)}
+      ${statCard("Portfolio Completed", "1", "📁", C.blue, "of 4 trainees")}
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">${tabHtml}</div>
+    ${card(`
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+        <h3 style="margin:0;color:${C.crimson};font-size:15px;font-weight:700">${tabs.find(t=>t.k===active)?.label}</h3>
+        <div style="display:flex;gap:8px">
+          ${btn("export-csv-rep", "⬇ Export CSV", "ghost", "sm")}
+          ${btn("export-pdf-rep", "⬇ Export PDF", "ghost", "sm")}
+        </div>
+      </div>
+      ${tableContent}`)}
+    ${modalHtml}`;
+}
+
+// ─── ADMIN: Audit Log ─────────────────────────────────────────────────────────
+function buildAuditLog() {
+  const rows = AUDIT_LOG.map((log, i) => [
+    `<span style="color:${C.gray300};font-family:monospace;font-size:12px">${String(log.id).padStart(3,"0")}</span>`,
+    `<span style="font-weight:700">${log.user}</span>`,
+    badge(log.role, log.role==="Admin"?"crimson":log.role==="Examiner"?"gold":"green"),
+    log.action,
+    `<code style="font-size:12px">${log.ip}</code>`,
+    `<span style="font-family:monospace;font-size:12px;color:${C.gray500}">${log.timestamp}</span>`,
+  ]);
+  return sectionTitle("Audit Log", "All user activity is recorded with timestamp, IP, and role") +
+    card(tableHtml(["#","User","Role","Action","IP Address","Timestamp"], rows));
+}
+
+// ─── EXAMINER: Dashboard ──────────────────────────────────────────────────────
+function buildExaminerDashboard() {
+  const pending = [
+    { label: "1 portfolio entry pending your review & sign-off", icon: "📋", nav: "portfolio-review", badge: "1 Pending", bc: "amber" },
+    { label: "View candidate lists for upcoming examinations",   icon: "📄", nav: "exams",            badge: "2 Exams",  bc: "blue"  },
+  ].map(a => `<div data-action="nav" data-nav="${a.nav}" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:${C.gray50};border-radius:8px;cursor:pointer;border:1px solid ${C.gray200};transition:all 0.13s">
+    <span style="font-size:22px">${a.icon}</span>
+    <span style="flex:1;font-size:13.5px;color:${C.gray800}">${a.label}</span>
+    ${badge(a.badge, a.bc)}
+  </div>`).join("");
+
+  return sectionTitle("Examiner Dashboard", "Dr. Kasun Jayawardena — Senior Examiner, Internal Medicine") +
+    `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px">
+      ${statCard("Entries to Review", "1", "📋", C.gold)}
+      ${statCard("My Exams", "2", "📄", C.crimson)}
+      ${statCard("Signed Off Today", "1", "✅", C.green)}
+    </div>` +
+    card(`<h3 style="margin:0 0 14px;color:${C.crimson};font-size:15px;font-weight:700">Pending Actions</h3><div style="display:grid;gap:10px">${pending}</div>`);
+}
+
+// ─── EXAMINER: Portfolio Review ───────────────────────────────────────────────
+function buildExaminerPortfolioReview() {
+  const md = APP.modalData;
+  const entryCards = PORTFOLIO_ENTRIES.map(e => card(`
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div style="flex:1">
+        <div style="font-size:12px;color:${C.gray400};margin-bottom:4px;text-transform:uppercase;letter-spacing:0.3px">${e.type} · ${e.date}</div>
+        <h3 style="margin:0 0 5px;color:${C.gray800};font-size:15px;font-weight:700">${e.title}</h3>
+        <div style="font-size:13px;color:${C.gray500}">🏷 Competency: <strong style="color:${C.gray700}">${e.competency}</strong></div>
+        ${e.grade ? `<div style="font-size:13px;margin-top:4px">Grade: ${badge(e.grade,"gold")}</div>` : ""}
+        ${e.feedback ? `<div style="margin-top:8px;background:${C.greenBg};border-radius:6px;padding:8px 12px;font-size:13px;color:${C.green}">💬 Feedback: "${e.feedback}"</div>` : ""}
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;margin-left:16px">
+        ${badge(e.status, e.status==="Signed Off"?"green":e.status==="Pending Review"?"amber":"gray")}
+        ${e.status==="Pending Review" ? btn("exm-review-"+e.id, "Review &amp; Sign Off", "primary", "sm") : ""}
+      </div>
+    </div>`)).join("");
+
+  let modalHtml = "";
+  if (APP.modal === "exm-review") {
+    const entry = PORTFOLIO_ENTRIES.find(e => e.id === md.reviewId);
+    if (entry) {
+      modalHtml = modalWrap("Sign Off Portfolio Entry", `
+        <div style="background:${C.gray50};border-radius:8px;padding:14px;margin-bottom:16px;font-size:13.5px">
+          <div style="margin-bottom:5px"><strong>Entry:</strong> ${entry.title}</div>
+          <div style="margin-bottom:5px"><strong>Type:</strong> ${entry.type}</div>
+          <div style="margin-bottom:5px"><strong>Competency Domain:</strong> ${entry.competency}</div>
+          <div><strong>Submitted by:</strong> ${USERS.trainee.name}</div>
+        </div>
+        ${formSelect("exm-grade", "Grade / Assessment", [
+          { value: "", label: "— Select grade —" },
+          { value: "Excellent",         label: "Excellent"         },
+          { value: "Satisfactory",      label: "Satisfactory"      },
+          { value: "Good",              label: "Good"              },
+          { value: "Needs Improvement", label: "Needs Improvement" },
+        ], md.grade || "")}
+        ${formTextarea("exm-feedback", "Feedback / Comments for Trainee", md.feedback || "", "Enter your constructive feedback...", true)}
+        <div style="display:flex;gap:10px;justify-content:flex-end">
+          ${btn("close-modal", "Cancel", "ghost")}
+          ${btn("exm-signoff", "✓ Sign Off Entry", "success")}
+        </div>`);
+    }
+  }
+
+  return sectionTitle("Portfolio Review", "Journey 3: Review and sign off trainee portfolio entries") +
+    `<div style="display:grid;gap:14px">${entryCards}</div>` + modalHtml;
+}
+
+// ─── EXAMINER: Exams ──────────────────────────────────────────────────────────
+function buildExaminerExams() {
+  const names = ["Dr. Amali Wijesinghe (TRN-001)", "Dr. Ruwan Fernando (TRN-002)", "Dr. Shalini Gunaratna (TRN-003)"];
+  const examCards = EXAMS.map(ex => card(`
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+      <div>
+        <h3 style="margin:0 0 5px;color:${C.gray800};font-size:15px;font-weight:700">${ex.name}</h3>
+        <div style="font-size:13px;color:${C.gray500}">📅 ${ex.date} &nbsp;·&nbsp; 📍 ${ex.venue}</div>
+      </div>
+      ${badge(ex.status, "blue")}
+    </div>
+    <div style="background:${C.gray50};border-radius:8px;padding:14px">
+      <div style="font-weight:700;font-size:12.5px;margin-bottom:10px;color:${C.crimson};text-transform:uppercase;letter-spacing:0.4px">Registered Candidates (${ex.candidates})</div>
+      ${names.map((n, i) => `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;${i < 2 ? `border-bottom:1px solid ${C.gray200}` : ""}">
+        <div style="width:30px;height:30px;border-radius:50%;background:${C.crimson};color:${C.white};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">${n[3]}</div>
+        <span style="font-size:13.5px;flex:1">${n}</span>
+        ${badge("Admitted","green")}
+      </div>`).join("")}
+    </div>`)).join("");
+
+  return sectionTitle("My Assigned Examinations", "Examinations where you are appointed as examiner") +
+    `<div style="display:grid;gap:16px">${examCards}</div>`;
+}
+
+// ─── TRAINEE: Dashboard ───────────────────────────────────────────────────────
+function buildTraineeDashboard() {
+  const signedOff = PORTFOLIO_ENTRIES.filter(e => e.status === "Signed Off").length;
+  const pct = Math.round((signedOff / PORTFOLIO_ENTRIES.length) * 100);
+
+  const actions = [
+    { label: "Add new logbook entry",       icon: "➕", nav: "portfolio" },
+    { label: "Register for upcoming exam",  icon: "📋", nav: "exams"     },
+    { label: "Browse available courses",    icon: "📚", nav: "courses"   },
+  ].map(a => `<div data-action="nav" data-nav="${a.nav}" style="display:flex;align-items:center;gap:12px;padding:11px 14px;background:${C.gray50};border-radius:8px;cursor:pointer;border:1px solid ${C.gray200}">
+    <span>${a.icon}</span><span style="font-size:13.5px;color:${C.gray800};flex:1">${a.label}</span><span style="color:${C.gray300}">›</span>
+  </div>`).join("");
+
+  return sectionTitle("Trainee Portal", "Welcome, Dr. Amali Wijesinghe — MD Internal Medicine, Year 2") +
+    `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px">
+      ${statCard("Portfolio Entries", PORTFOLIO_ENTRIES.length, "📁", C.crimson)}
+      ${statCard("Signed Off", signedOff, "✅", C.green, `${pct}% complete`)}
+      ${statCard("Upcoming Exams", "1", "📋", C.gold)}
+    </div>
+    <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:18px">
+      ${card(`
+        <h3 style="margin:0 0 14px;color:${C.crimson};font-size:15px;font-weight:700">Portfolio Progress</h3>
+        <div style="margin-bottom:18px">
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span>Overall completion</span><strong>${pct}%</strong></div>
+          ${progressBar(pct)}
+        </div>
+        <div style="display:grid;gap:9px">${actions}</div>`)}
+      ${card(`
+        <h3 style="margin:0 0 14px;color:${C.crimson};font-size:15px;font-weight:700">Upcoming Exam</h3>
+        <div style="background:${C.blueBg};border-radius:9px;padding:16px;margin-bottom:14px">
+          <div style="font-weight:700;color:${C.blue};margin-bottom:5px">MD Internal Medicine — Part I</div>
+          <div style="font-size:13px;color:${C.blue};margin-bottom:4px">📅 15 June 2026</div>
+          <div style="font-size:13px;color:${C.blue};margin-bottom:10px">📍 Examination Hall A</div>
+          ${badge("Registered","blue")}
+        </div>
+        ${btn("tr-dl-adm-card", "⬇ Download Admission Card", "primary", "sm")}`)}
+    </div>`;
+}
+
+// ─── TRAINEE: Course Registration ────────────────────────────────────────────
+function buildTraineeCourses() {
+  const md = APP.modalData;
+  const sc = COURSES.find(c => c.id === md.courseId);
+
+  const courseCards = COURSES.map(c => card(`
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div style="flex:1">
+        <h3 style="margin:0 0 5px;color:${C.gray800};font-size:15px;font-weight:700">${c.name}</h3>
+        <div style="font-size:13px;color:${C.gray500}">Code: ${c.code} &nbsp;·&nbsp; Duration: ${c.duration} &nbsp;·&nbsp; Fee: LKR ${c.fee.toLocaleString()}</div>
+        <div style="font-size:13px;color:${C.gray500};margin-top:3px">Seats: <span style="color:${c.enrolled===c.seats?C.red:C.green};font-weight:700">${c.enrolled}/${c.seats}</span> filled</div>
+        <div style="margin-top:8px">${progressBar(Math.round((c.enrolled/c.seats)*100))}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:10px;margin-left:20px;flex-shrink:0">
+        ${badge(c.status, c.status==="Open"?"green":"red")}
+        ${c.status==="Open" ? btn("tr-course-reg-"+c.id, "Apply Now", "primary", "sm") : `<span style="font-size:12px;color:${C.gray400}">Registration closed</span>`}
+      </div>
+    </div>`)).join("");
+
+  let modalHtml = "";
+  if (APP.modal === "tr-course-step1" && sc) {
+    modalHtml = modalWrap(`Application — ${sc.name}`, `
+      <div style="background:${C.blueBg};border-radius:7px;padding:10px;font-size:13px;color:${C.blue};margin-bottom:14px">✓ Eligibility check passed — you meet the prerequisites for this course</div>
+      ${formInput("tr-c-name", "Full Name", "text", USERS.trainee.name, "", false, true)}
+      ${formInput("tr-c-id", "PGIM ID", "text", USERS.trainee.id, "", false, true)}
+      ${formInput("tr-c-email", "Email Address", "email", USERS.trainee.email, "", false, true)}
+      ${formInput("tr-c-slmc", "Medical Council Reg. No.", "text", "", "SLMC-XXXXX", true)}
+      ${formInput("tr-c-phone", "Contact Phone", "text", "", "+94 7X XXX XXXX")}
+      <div style="background:${C.amberBg};border-radius:7px;padding:10px;font-size:13px;color:${C.amber};margin-bottom:14px">
+        💳 Course registration fee: <strong>LKR ${sc.fee.toLocaleString()}</strong> — payable in next step
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        ${btn("close-modal", "Cancel", "ghost")}
+        ${btn("tr-course-step2", "Proceed to Payment →", "primary")}
+      </div>`);
+  }
+
+  if (APP.modal === "tr-course-step2" && sc) {
+    modalHtml = modalWrap("Mock Payment Gateway — Simulated Redirect", `
+      <div style="text-align:center;margin-bottom:14px">
+        <div style="font-size:44px;margin-bottom:6px">💳</div>
+        <div style="background:${C.amberBg};border-radius:7px;padding:8px;font-size:12px;color:${C.amber}">⚠ SIMULATED — Redirected to PayHere Payment Gateway</div>
+      </div>
+      <div style="background:${C.gray50};border-radius:9px;padding:14px;font-size:13.5px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:7px"><span>Course</span><strong>${sc.name}</strong></div>
+        <div style="display:flex;justify-content:space-between;padding-top:9px;border-top:1px solid ${C.gray200}"><strong>Amount Due</strong><strong style="color:${C.crimson};font-size:17px">LKR ${sc.fee.toLocaleString()}</strong></div>
+      </div>
+      ${formInput("tr-c2-card","Card Number","text","4111 1111 1111 1111","",false,true)}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        ${formInput("tr-c2-exp","Expiry","text","12/28","",false,true)}
+        ${formInput("tr-c2-cvv","CVV","text","•••","",false,true)}
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        ${btn("tr-course-back1","← Back","ghost")}
+        ${btn("tr-course-pay","Pay LKR "+sc.fee.toLocaleString(),"success")}
+      </div>`);
+  }
+
+  if (APP.modal === "tr-course-step3" && sc) {
+    const ref = "PAY-" + Date.now().toString().slice(-8);
+    modalHtml = modalWrap("Registration Confirmed", `
+      <div style="text-align:center">
+        <div style="font-size:60px;margin-bottom:10px">✅</div>
+        <h3 style="color:${C.green};margin:0 0 8px">You're Enrolled!</h3>
+        <p style="color:${C.gray500};font-size:13.5px;margin-bottom:16px">You have been successfully registered for <strong>${sc.name}</strong>.</p>
+        <div style="background:${C.greenBg};border-radius:9px;padding:14px;text-align:left;font-size:13px;margin-bottom:18px">
+          <div style="margin-bottom:5px">📧 Confirmation email sent to: ${USERS.trainee.email}</div>
+          <div style="margin-bottom:5px">💳 Payment ref: ${ref}</div>
+          <div>🎟 Admission card: Ready to download</div>
+        </div>
+        ${btn("tr-course-dl","⬇ Download Admission Card","primary","md")}
+      </div>`);
+  }
+
+  return sectionTitle("Course Registration", "Journey 2: Browse eligible courses, apply and complete mock payment") +
+    `<div style="display:grid;gap:16px">${courseCards}</div>` + modalHtml;
+}
+
+// ─── TRAINEE: Portfolio ───────────────────────────────────────────────────────
+function buildTraineePortfolio() {
+  const md = APP.modalData;
+  const filter = md.portfolioFilter || "All";
+  const filtered = filter === "All" ? PORTFOLIO_ENTRIES : PORTFOLIO_ENTRIES.filter(e => e.status === filter);
+
+  const filterTabs = ["All","Draft","Pending Review","Signed Off"].map(f => {
+    const count = f === "All" ? PORTFOLIO_ENTRIES.length : PORTFOLIO_ENTRIES.filter(e => e.status === f).length;
+    const active = filter === f;
+    return `<div data-action="portfolio-filter" data-filter="${f}" style="padding:7px 14px;border-radius:20px;cursor:pointer;background:${active?C.crimson:C.white};color:${active?C.white:C.gray700};border:1.5px solid ${active?C.crimson:C.gray200};font-size:13px;font-weight:600;transition:all 0.13s">${f} (${count})</div>`;
+  }).join("");
+
+  const entryCards = filtered.map(e => card(`
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div style="flex:1">
+        <div style="font-size:11.5px;color:${C.gray400};margin-bottom:5px;text-transform:uppercase;letter-spacing:0.4px">${e.type} · ${e.date}</div>
+        <h3 style="margin:0 0 5px;color:${C.gray800};font-size:15px;font-weight:700">${e.title}</h3>
+        <div style="font-size:13px;color:${C.gray500}">🏷 Competency Domain: <strong style="color:${C.gray700}">${e.competency}</strong></div>
+        ${e.grade ? `<div style="margin-top:5px">Grade: ${badge(e.grade,"gold")}</div>` : ""}
+        ${e.feedback ? `<div style="margin-top:9px;background:${C.greenBg};border-radius:7px;padding:9px 13px;font-size:13px;color:${C.green}">💬 Supervisor feedback: "${e.feedback}"</div>` : ""}
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:9px;margin-left:16px;flex-shrink:0">
+        ${badge(e.status, e.status==="Signed Off"?"green":e.status==="Pending Review"?"amber":"gray")}
+        ${e.status==="Draft" ? btn("tr-share-"+e.id,"📤 Share with Supervisor","primary","sm") : ""}
+      </div>
+    </div>`)).join("") || `<div style="text-align:center;padding:40px;color:${C.gray400};font-size:14px">No entries with status "${filter}"</div>`;
+
+  let modalHtml = "";
+  if (APP.modal === "tr-add-entry") {
+    modalHtml = modalWrap("Add New Portfolio Entry", `
+      ${formSelect("tr-e-type","Entry Type",[
+        {value:"",label:"— Select type —"},
+        {value:"Clinical Case",   label:"Clinical Case"},
+        {value:"Procedure",       label:"Procedure / Practical Skill"},
+        {value:"Teaching Session",label:"Teaching / Educational Activity"},
+        {value:"Research Activity",label:"Research / Audit Activity"},
+        {value:"Supervision",     label:"Supervision / Mentoring"},
+      ], md.eType || "", true)}
+      ${formInput("tr-e-title","Title / Activity Description","text",md.eTitle||"","e.g. Management of Acute Myocardial Infarction",true)}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        ${formInput("tr-e-date","Date","date",md.eDate||"","",true)}
+        ${formSelect("tr-e-comp","Competency Domain",[
+          {value:"",label:"— Select domain —"},
+          {value:"Clinical Reasoning",  label:"Clinical Reasoning"},
+          {value:"Procedural Skills",   label:"Procedural Skills"},
+          {value:"Communication",       label:"Communication"},
+          {value:"Teaching & Learning", label:"Teaching & Learning"},
+          {value:"Professionalism",     label:"Professionalism & Ethics"},
+          {value:"Research",            label:"Research & Scholarship"},
+        ], md.eComp || "", true)}
+      </div>
+      ${formTextarea("tr-e-reflect","Reflection / Learning Points",md.eReflect||"","Reflect on what you learned...")}
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        ${btn("close-modal","Cancel","ghost")}
+        ${btn("tr-save-draft","Save as Draft","secondary")}
+        ${btn("tr-save-share","Save &amp; Share with Supervisor","primary")}
+      </div>`, true);
+  }
+
+  return sectionTitle("e-Portfolio / Training Logbook",
+    "Journey 3: Add entries, map competencies, share with supervisor",
+    btn("tr-add-entry-open","+ Add New Entry","primary")) +
+    `<div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">${filterTabs}</div>
+    <div style="display:grid;gap:14px">${entryCards}</div>` + modalHtml;
+}
+
+// ─── TRAINEE: Examinations ────────────────────────────────────────────────────
+function buildTraineeExams() {
+  const md = APP.modalData;
+  const myResult = RESULTS.find(r => r.pgimId === "TRN-001");
+  const se = EXAMS.find(e => e.id === md.selectedExamId);
+
+  let modalHtml = "";
+
+  if (APP.modal === "tr-exam-step1" && se) {
+    modalHtml = modalWrap("Exam Registration — Step 1 of 2", `
+      <div style="background:${C.blueBg};border-radius:7px;padding:12px;margin-bottom:14px;font-size:13.5px;color:${C.blue}">
+        <strong>${se.name}</strong><br/>📅 ${se.date} · ${se.venue}
+      </div>
+      <div style="background:${C.gray50};border-radius:8px;padding:14px;font-size:13.5px;margin-bottom:14px">
+        <div style="margin-bottom:6px">Name: <strong>${USERS.trainee.name}</strong></div>
+        <div style="margin-bottom:6px">PGIM ID: <strong>${USERS.trainee.id}</strong></div>
+        <div>Exam Fee: <strong style="color:${C.crimson}">LKR ${se.fee.toLocaleString()}</strong></div>
+      </div>
+      <div style="background:${C.amberBg};border-radius:7px;padding:10px;font-size:12.5px;color:${C.amber};margin-bottom:14px">
+        ✓ You are eligible to sit this examination based on your enrolment status
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        ${btn("close-modal","Cancel","ghost")}
+        ${btn("tr-exam-step2","Proceed to Payment →","primary")}
+      </div>`);
+  }
+
+  if (APP.modal === "tr-exam-step2" && se) {
+    modalHtml = modalWrap("Exam Registration — Step 2 of 2 (Mock Payment)", `
+      <div style="text-align:center;margin-bottom:12px">
+        <div style="font-size:40px;margin-bottom:6px">💳</div>
+        <div style="background:${C.amberBg};border-radius:7px;padding:7px;font-size:12px;color:${C.amber}">⚠ SIMULATED — No real payment</div>
+      </div>
+      <div style="background:${C.gray50};border-radius:9px;padding:13px;margin-bottom:14px;font-size:13.5px">
+        <div style="display:flex;justify-content:space-between"><span>Exam Fee</span><strong style="color:${C.crimson}">LKR ${se.fee.toLocaleString()}</strong></div>
+      </div>
+      ${formInput("tr-ex-card","Card Number","text","4111 1111 1111 1111","",false,true)}
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        ${btn("tr-exam-back1","← Back","ghost")}
+        ${btn("tr-exam-pay","Pay LKR "+se.fee.toLocaleString(),"success")}
+      </div>`);
+  }
+
+  if (APP.modal === "tr-exam-step3") {
+    const idx = "2026/MED/00" + (Math.floor(Math.random() * 9) + 1);
+    modalHtml = modalWrap("Registration Confirmed", `
+      <div style="text-align:center">
+        <div style="font-size:60px;margin-bottom:10px">🎟</div>
+        <h3 style="color:${C.green};margin:0 0 8px">Exam Registration Complete!</h3>
+        <p style="color:${C.gray500};font-size:13.5px">Your admission card has been generated and is ready for download.</p>
+        <div style="background:${C.greenBg};border-radius:8px;padding:13px;text-align:left;font-size:13px;margin-bottom:16px">
+          <div style="margin-bottom:5px">📧 Admission card sent to: ${USERS.trainee.email}</div>
+          <div>🔖 Index No.: ${idx}</div>
+        </div>
+        ${btn("tr-exam-dl","⬇ Download Admission Card","primary","md")}
+      </div>`);
+  }
+
+  if (APP.modal === "tr-appeal") {
+    modalHtml = modalWrap("Submit Appeal / Rechecking Request", `
+      <div style="background:${C.amberBg};border-radius:7px;padding:10px;font-size:13px;color:${C.amber};margin-bottom:14px">
+        ⚠ Appeals must be submitted within 14 days of result publication. A fee of LKR 1,500 applies.
+      </div>
+      ${formSelect("tr-appeal-exam","Examination",[{value:"EX001",label:"MD Internal Medicine — Part I (Score: 72%)"}],"EX001")}
+      ${formSelect("tr-appeal-type","Appeal Type",[
+        {value:"",label:"— Select type —"},
+        {value:"recheck",      label:"Script Rechecking"},
+        {value:"review",       label:"Mark Review"},
+        {value:"irregularity", label:"Irregularity Complaint"},
+      ], md.appealType || "", true)}
+      ${formTextarea("tr-appeal-text","Grounds for Appeal",md.appealText||"","State clearly and specifically why you believe your result should be reviewed...",true)}
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        ${btn("close-modal","Cancel","ghost")}
+        ${btn("tr-appeal-submit","Submit Appeal","primary")}
+      </div>`);
+  }
+
+  const examRows = EXAMS.map(ex => [
+    `<span style="font-weight:700">${ex.name}</span>`,
+    ex.course, ex.date, ex.venue,
+    ex.fee.toLocaleString(),
+    btn("tr-exam-reg-"+ex.id,"Register &amp; Pay","primary","sm"),
+  ]);
+
+  let resultHtml = "";
+  if (myResult?.published) {
+    resultHtml = `
+      <div style="background:${C.gray50};border-radius:9px;padding:18px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-weight:700;color:${C.gray800};font-size:15px;margin-bottom:4px">MD Internal Medicine — Part I Theory</div>
+            <div style="font-size:13px;color:${C.gray500}">Examination date: 2026-03-10</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:30px;font-weight:800;color:${myResult.score>=60?C.green:C.red}">${myResult.score}%</div>
+            ${badge(myResult.grade, myResult.grade==="Pass"?"green":"red")}
+          </div>
+        </div>
+      </div>
+      ${myResult.appealed ?
+        `<div style="background:${C.amberBg};border-radius:7px;padding:12px;font-size:13px;color:${C.amber}">
+          ⏳ Appeal submitted — Status: <strong>${myResult.appealStatus || "Pending Review"}</strong>
+          ${myResult.appealStatus==="Accepted" ? " ✓ — Please await revised result." : ""}
+          ${myResult.appealStatus==="Rejected" ? " — The original result stands." : ""}
+        </div>` :
+        btn("tr-appeal-open","⚠ Submit Appeal / Rechecking Request","secondary","sm")}`;
+  } else {
+    resultHtml = `<div style="background:${C.amberBg};border-radius:8px;padding:14px;font-size:13.5px;color:${C.amber};text-align:center">
+      ⏳ Results for your examination have not yet been published. Please check back later.
+    </div>`;
+  }
+
+  return sectionTitle("Examinations Portal", "Journey 4: Register for exams, view results, submit appeals") +
+    card(`<h3 style="margin:0 0 16px;color:${C.crimson};font-size:15px;font-weight:700">Available Examinations</h3>
+      ${tableHtml(["Examination","Course","Date","Venue","Fee (LKR)","Action"], examRows)}`,
+      "margin-bottom:20px") +
+    card(`<h3 style="margin:0 0 16px;color:${C.crimson};font-size:15px;font-weight:700">My Examination Results</h3>${resultHtml}`) +
+    modalHtml;
+}
+
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+function buildToast() {
+  if (!APP.toast) return "";
+  const t = APP.toast;
+  const bg = t.type==="success" ? C.green : t.type==="error" ? C.red : C.navy;
+  return `<div style="position:fixed;bottom:28px;right:28px;z-index:2000;background:${bg};color:${C.white};padding:13px 22px;border-radius:10px;font-weight:600;font-size:13.5px;box-shadow:0 4px 20px rgba(0,0,0,0.2);display:flex;align-items:center;gap:8px">
+    <span style="font-size:16px">${t.type==="success"?"✓":"⚠"}</span> ${t.msg}
+  </div>`;
+}
+
+// ─── MAIN BUILD ───────────────────────────────────────────────────────────────
+function buildApp() {
+  if (!APP.user) return buildLogin() + buildToast();
+
+  const roleKey = APP.user.role.toLowerCase();
+  let content = "";
+
+  if (roleKey === "admin") {
+    if (APP.nav === "dashboard")  content = buildAdminDashboard();
+    else if (APP.nav === "admissions") content = buildAdminAdmissions();
+    else if (APP.nav === "exams")      content = buildAdminExams();
+    else if (APP.nav === "reports")    content = buildAdminReports();
+    else if (APP.nav === "audit")      content = buildAuditLog();
+    else if (APP.nav === "assignments") content = buildAdminAssignments();
+  } else if (roleKey === "examiner") {
+    if (APP.nav === "dashboard")        content = buildExaminerDashboard();
+    else if (APP.nav === "portfolio-review") content = buildExaminerPortfolioReview();
+    else if (APP.nav === "exams")            content = buildExaminerExams();
+  } else if (roleKey === "trainee") {
+    if (APP.nav === "dashboard")  content = buildTraineeDashboard();
+    else if (APP.nav === "courses")   content = buildTraineeCourses();
+    else if (APP.nav === "portfolio") content = buildTraineePortfolio();
+    else if (APP.nav === "exams")     content = buildTraineeExams();
+    else if (APP.nav === "assignments") content = buildTraineeAssignments();
+  }
+
+  let html = buildShell(content);
+  if (APP.showRoleSwitch) html += buildRoleSwitchModal();
+  html += buildToast();
+  return html;
+}
+
+// ─── EVENT HANDLER ────────────────────────────────────────────────────────────
+function attachEvents() {
+  document.addEventListener("click", handleClick, { once: true });
+  document.addEventListener("change", handleChange, { once: true });
+}
+
+function handleChange(e) {
+  // Re-attach after handling
+  document.addEventListener("change", handleChange, { once: true });
+}
+
+function handleClick(e) {
+  // Re-attach first so we don't lose events
+  document.addEventListener("click", handleClick, { once: true });
+
+  const el = e.target.closest("[data-action]");
+  if (!el) return;
+
+  const action = el.dataset.action;
+
+  // ── Login ──
+  if (action === "select-role") {
+    APP.loginSelected = el.dataset.role;
+    render(); return;
+  }
+  if (action === "real-login") {
+  const email = document.getElementById('login-email')?.value || '';
+  const password = document.getElementById('login-password')?.value || '';
+  const errDiv = document.getElementById('login-error');
+  const btn = document.getElementById('login-btn');
+
+  if (!email || !password) {
+    errDiv.style.display = 'block';
+    errDiv.textContent = '❌ Please enter both email and password.';
+    return;
+  }
+
+  btn.textContent = 'Signing in…';
+  btn.disabled = true;
+  errDiv.style.display = 'none';
+
+  fetch('http://localhost:3001/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.token) {
+      localStorage.setItem('pgim_token', data.token);
+      const roleKey = data.user.role.toLowerCase();
+      const initials = data.user.name.split(' ').slice(-2).map(n => n[0]).join('');
+      APP.user = {
+        ...USERS[roleKey],
+        id:       data.user.id,
+        name:     data.user.name,
+        email:    data.user.email,
+        role:     data.user.role.charAt(0) + data.user.role.slice(1).toLowerCase(),
+        title:    data.user.title,
+        initials: initials,
+      };
+      APP.nav = 'dashboard';
+      APP.modalData = {};
+      render();
+    } else {
+      btn.textContent = 'Sign In →';
+      btn.disabled = false;
+      errDiv.style.display = 'block';
+      errDiv.textContent = '❌ ' + (data.error || 'Login failed');
+    }
+  })
+  .catch(() => {
+    btn.textContent = 'Sign In →';
+    btn.disabled = false;
+    errDiv.style.display = 'block';
+    errDiv.textContent = '❌ Cannot reach server. Is the backend running?';
+  });
+  return;
+}
+  if (action === "sso-complete") {
+  APP.loginLoading = true; render();
+
+  const creds = {
+    admin:    { email: 'admin@pgim.lk',    password: 'Admin@1234'    },
+    examiner: { email: 'examiner@pgim.lk', password: 'Examiner@1234' },
+    trainee:  { email: 'trainee@pgim.lk',  password: 'Trainee@1234'  },
+  };
+
+  const { email, password } = creds[APP.loginSelected];
+
+  fetch('http://localhost:3001/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.token) {
+      localStorage.setItem('pgim_token', data.token);
+
+      const roleKey = data.user.role.toLowerCase();
+      const initials = data.user.name.split(' ').slice(-2).map(n => n[0]).join('');
+
+      APP.user = {
+        ...USERS[roleKey],
+        id:       data.user.id,
+        name:     data.user.name,
+        email:    data.user.email,
+        role:     data.user.role.charAt(0) + data.user.role.slice(1).toLowerCase(),
+        title:    data.user.title,
+        initials: initials,
+      };
+
+      APP.loginPhase = 'select';
+      APP.loginSelected = null;
+      APP.loginLoading = false;
+      APP.nav = 'dashboard';
+      APP.modalData = {};
+      render();
+    } else {
+      APP.loginLoading = false;
+      render();
+      showToast('Login failed: ' + data.error, 'error');
+    }
+  })
+  .catch(() => {
+    APP.loginLoading = false;
+    render();
+    showToast('Cannot reach server. Make sure backend is running!', 'error');
+  });
+  return;
+}
+
+  // ── Shell ──
+  if (action === "nav") {
+    const nav = el.dataset.nav;
+    if (nav === "switchrole") { APP.showRoleSwitch = true; APP.modalData = {}; render(); return; }
+    APP.nav = nav; APP.modal = null; APP.modalData = {}; render();
+    if (nav === 'assignments' && APP.user.role === 'Admin') loadAdminDocs();
+    if (nav === 'assignments' && APP.user.role === 'Trainee') loadTraineeDocs();
+return;
+  }
+  if (action === "logout") {
+    APP.user = null; APP.nav = "dashboard"; APP.prevRole = null; APP.modal = null; APP.modalData = {}; APP.loginPhase = "select"; render(); return;
+  }
+  if (action === "return-admin") {
+    APP.user = USERS.admin; APP.nav = "dashboard"; APP.prevRole = null; APP.modal = null; render();
+    showToast("Returned to Admin view", "success"); return;
+  }
+
+  // ── Role Switch ──
+  if (action === "switch-target") {
+    APP.modalData.switchTarget = el.dataset.role; render(); return;
+  }
+  if (action === "execute-switch") {
+    const t = APP.modalData.switchTarget;
+    if (!t) return;
+    if (!APP.prevRole) APP.prevRole = APP.user.role.toLowerCase();
+    const prev = APP.user.role;
+    APP.user = USERS[t]; APP.nav = "dashboard"; APP.showRoleSwitch = false; APP.modalData = {};
+    addAudit(`Role switched from ${prev} to ${APP.user.role} (token simulation)`);
+    render(); showToast(`Switched to ${APP.user.role} view`, "success"); return;
+  }
+
+  // ── Modal Close ──
+  if (action === "close-modal" || action === "modal-overlay") {
+    APP.modal = null; APP.modalData = {}; render(); return;
+  }
+
+  // ── Admissions ──
+  if (action === "open-reg-new" || action.startsWith("open-reg-C")) {
+    APP.modal = "adm-step1";
+    APP.modalData = { course: action.startsWith("open-reg-C") ? action.replace("open-reg-","") : "C001" };
+    render(); return;
+  }
+  if (action === "adm-next-2") {
+    const first = document.getElementById("adm-first")?.value || "";
+    const last = document.getElementById("adm-last")?.value || "";
+    const email = document.getElementById("adm-email")?.value || "";
+    const nic = document.getElementById("adm-nic")?.value || "";
+    const slmc = document.getElementById("adm-slmc")?.value || "";
+    const phone = document.getElementById("adm-phone")?.value || "";
+    const course = document.getElementById("adm-course")?.value || APP.modalData.course || "C001";
+    if (!first || !email || !nic) { showToast("Please fill required fields", "error"); return; }
+    APP.modalData = { ...APP.modalData, firstName: first, lastName: last, email, nic, slmc, phone, course };
+    APP.modal = "adm-step2"; render(); return;
+  }
+  if (action === "adm-back-1") { APP.modal = "adm-step1"; render(); return; }
+  if (action === "adm-confirm-pay") {
+    APP.modal = "adm-step3";
+    addAudit(`Registered candidate ${APP.modalData.firstName} ${APP.modalData.lastName} for ${COURSES.find(c=>c.id===APP.modalData.course)?.name} — mock payment confirmed`);
+    render(); showToast("Payment confirmed! Enrolment successful.", "success"); return;
+  }
+  if (action === "adm-download") { showToast("Admission card downloaded (PDF)", "success"); APP.modal = null; APP.modalData = {}; render(); return; }
+  if (action === "export-csv-adm") { showToast("Enrolment list exported as CSV", "success"); return; }
+  if (action === "export-pdf-adm") { showToast("Enrolment list exported as PDF", "success"); return; }
+
+  // ── Admin Exams ──
+  if (action === "create-exam-open") { APP.modal = "create-exam"; APP.modalData = {}; render(); return; }
+  if (action === "manage-results")    { APP.modal = "results"; render(); return; }
+  if (action === "publish-all") {
+    RESULTS = RESULTS.map(r => ({ ...r, published: true }));
+    addAudit("Published examination results for EX001 — MD Internal Medicine Part I");
+    APP.modal = null; render(); showToast("Results published to all candidates", "success"); return;
+  }
+  if (action.startsWith("review-appeal-")) {
+    const id = action.replace("review-appeal-","");
+    APP.modal = "appeal-review"; APP.modalData = { ...APP.modalData, appealResult: RESULTS.find(r=>r.id===id) }; render(); return;
+  }
+  if (action === "back-to-results") { APP.modal = "results"; render(); return; }
+  if (action === "accept-appeal" || action === "reject-appeal") {
+    const decision = action === "accept-appeal" ? "Accepted" : "Rejected";
+    const dec = document.getElementById("appeal-decision")?.value || decision;
+    const res = document.getElementById("appeal-response")?.value || "";
+    if (!dec) { showToast("Please select a decision", "error"); return; }
+    const r = APP.modalData.appealResult;
+    RESULTS = RESULTS.map(x => x.id === r.id ? { ...x, appealStatus: dec } : x);
+    addAudit(`Appeal by ${r.candidate} — ${dec}`);
+    APP.modal = null; APP.modalData = {}; render(); showToast(`Appeal ${dec.toLowerCase()}`, "success"); return;
+  }
+  if (action === "create-exam-confirm") {
+    const name = document.getElementById("ex-name")?.value || "";
+    addAudit(`Created new exam session: ${name}`);
+    APP.modal = null; APP.modalData = {}; render(); showToast("Exam session created successfully", "success"); return;
+  }
+  if (action.startsWith("send-admission-")) { addAudit("Admission cards sent"); showToast("Admission cards sent to all registered candidates", "success"); return; }
+
+  // ── Reports ──
+  if (action === "report-tab") { APP.modalData.reportTab = el.dataset.tab; render(); return; }
+  if (action.startsWith("drilldown-")) {
+    const id = action.replace("drilldown-","");
+    const c = COURSES.find(c => c.id === id);
+    if (c) { APP.modal = "drilldown"; APP.modalData = { ...APP.modalData, drilldownCourse: c }; render(); return; }
+  }
+  if (action === "drilldown-csv") { showToast("Drill-down exported as CSV", "success"); APP.modal = null; render(); return; }
+  if (action === "drilldown-pdf") { showToast("Drill-down exported as PDF", "success"); APP.modal = null; render(); return; }
+  if (action === "export-csv-rep") { showToast("Report exported as CSV", "success"); return; }
+  if (action === "export-pdf-rep") { showToast("Report exported as PDF", "success"); return; }
+
+  // ── Examiner Portfolio Review ──
+  if (action.startsWith("exm-review-")) {
+    const id = action.replace("exm-review-","");
+    APP.modal = "exm-review"; APP.modalData = { reviewId: id }; render(); return;
+  }
+  if (action === "exm-signoff") {
+    const grade = document.getElementById("exm-grade")?.value || "";
+    const fb = document.getElementById("exm-feedback")?.value || "";
+    if (!grade || !fb) { showToast("Please fill grade and feedback", "error"); return; }
+    const id = APP.modalData.reviewId;
+    const entry = PORTFOLIO_ENTRIES.find(e => e.id === id);
+    PORTFOLIO_ENTRIES = PORTFOLIO_ENTRIES.map(e => e.id === id ? { ...e, status: "Signed Off", feedback: fb, grade } : e);
+    addAudit(`Signed off portfolio entry "${entry?.title}" — ${USERS.trainee.name}`);
+    APP.modal = null; APP.modalData = {}; render(); showToast("Portfolio entry signed off successfully", "success"); return;
+  }
+
+  // ── Trainee Courses ──
+  if (action.startsWith("tr-course-reg-")) {
+    const id = action.replace("tr-course-reg-","");
+    APP.modal = "tr-course-step1"; APP.modalData = { courseId: id }; render(); return;
+  }
+  if (action === "tr-course-step2") { APP.modal = "tr-course-step2"; render(); return; }
+  if (action === "tr-course-back1") { APP.modal = "tr-course-step1"; render(); return; }
+  if (action === "tr-course-pay") {
+    addAudit(`Registered for course — mock payment confirmed`);
+    APP.modal = "tr-course-step3"; render(); showToast("Registered successfully!", "success"); return;
+  }
+  if (action === "tr-course-dl") { showToast("Admission card downloaded (PDF)", "success"); APP.modal = null; APP.modalData = {}; render(); return; }
+
+  // ── Trainee Portfolio ──
+  if (action === "portfolio-filter") { APP.modalData.portfolioFilter = el.dataset.filter; render(); return; }
+  if (action === "tr-add-entry-open") { APP.modal = "tr-add-entry"; render(); return; }
+  if (action === "tr-save-draft" || action === "tr-save-share") {
+    const type = document.getElementById("tr-e-type")?.value || "";
+    const title = document.getElementById("tr-e-title")?.value || "";
+    const date = document.getElementById("tr-e-date")?.value || "";
+    const comp = document.getElementById("tr-e-comp")?.value || "";
+    if (!title || !type) { showToast("Please fill required fields", "error"); return; }
+    const share = action === "tr-save-share";
+    const id = "P00" + (PORTFOLIO_ENTRIES.length + 1);
+    PORTFOLIO_ENTRIES.push({ id, type: type||"Clinical Case", title, date: date||new Date().toISOString().slice(0,10), competency: comp||"Clinical Reasoning", status: share?"Pending Review":"Draft", feedback:"", grade:"" });
+    addAudit(`Added portfolio entry: ${title}${share?" — shared with supervisor":""}`);
+    APP.modal = null; APP.modalData = {}; render(); showToast(share?"Entry added and shared with supervisor":"Entry saved as draft","success"); return;
+  }
+  if (action.startsWith("tr-share-")) {
+    const id = action.replace("tr-share-","");
+    PORTFOLIO_ENTRIES = PORTFOLIO_ENTRIES.map(e => e.id===id ? {...e,status:"Pending Review"} : e);
+    addAudit(`Shared portfolio entry ${id} with supervisor for review`);
+    render(); showToast("Entry shared with supervisor for review","success"); return;
+  }
+
+  // ── Trainee Exams ──
+  if (action.startsWith("tr-exam-reg-")) {
+    const id = action.replace("tr-exam-reg-","");
+    APP.modal = "tr-exam-step1"; APP.modalData = { selectedExamId: id }; render(); return;
+  }
+  if (action === "tr-exam-step2") { APP.modal = "tr-exam-step2"; render(); return; }
+  if (action === "tr-exam-back1") { APP.modal = "tr-exam-step1"; render(); return; }
+  if (action === "tr-exam-pay") {
+    const se = EXAMS.find(e => e.id === APP.modalData.selectedExamId);
+    addAudit(`Registered for exam: ${se?.name} — mock payment LKR ${se?.fee}`);
+    APP.modal = "tr-exam-step3"; render(); showToast("Exam registration confirmed!","success"); return;
+  }
+  if (action === "tr-exam-dl") { showToast("Admission card downloaded (PDF)","success"); APP.modal=null; APP.modalData={}; render(); return; }
+  if (action === "tr-appeal-open") { APP.modal = "tr-appeal"; APP.modalData = {}; render(); return; }
+  if (action === "tr-appeal-submit") {
+    const type = document.getElementById("tr-appeal-type")?.value || "";
+    const text = document.getElementById("tr-appeal-text")?.value || "";
+    if (!text || !type) { showToast("Please fill all required fields","error"); return; }
+    RESULTS = RESULTS.map(r => r.pgimId==="TRN-001" ? {...r,appealed:true,appealText:text,appealStatus:null} : r);
+    addAudit(`Submitted appeal for exam EX001 — Grounds: ${text.slice(0,40)}…`);
+    APP.modal=null; APP.modalData={}; render(); showToast("Appeal submitted successfully","success"); return;
+  }
+  if (action === "tr-dl-adm-card") { showToast("Admission card downloaded (PDF)","success"); return; }
+}
+
+// ─── Bootstrap ────────────────────────────────────────────────────────────────
+render();
+
+
+async function adminUploadPDF() {
+  const fileInput = document.getElementById('pdf-file-input');
+  if (!fileInput.files[0]) return alert('Please select a PDF first');
+  const formData = new FormData();
+  formData.append('pdf', fileInput.files[0]);
+  formData.append('uploadedBy', APP.user.name);
+  await fetch('http://localhost:3001/api/documents/upload', { method: 'POST', body: formData });
+  loadAdminDocs(); // refresh list
+}
+
+async function loadAdminDocs() {
+  const res = await fetch('http://localhost:3001/api/documents');
+  const docs = await res.json();
+  const html = docs.map(d => `
+    <div style="display:flex;align-items:center;gap:12px;padding:10px;border:1px solid #ddd;border-radius:6px;margin-bottom:8px">
+      <span>📄 ${d.originalName}</span>
+      <span style="color:#999;font-size:12px">${new Date(d.uploadedAt).toLocaleDateString()}</span>
+      <button onclick="adminDeleteDoc(${d.id})" style="margin-left:auto;padding:4px 12px;background:#e74c3c;color:white;border:none;border-radius:4px;cursor:pointer">🗑 Delete</button>
+    </div>`).join('') || '<p style="color:#999">No documents uploaded yet.</p>';
+  document.getElementById('admin-doc-list').innerHTML = html;
+}
+
+async function adminDeleteDoc(id) {
+  if (!confirm('Delete this document? Trainees will no longer see it.')) return;
+  await fetch(`http://localhost:3001/api/documents/${id}`, { method: 'DELETE' });
+  loadAdminDocs();
+}
+
+function buildTraineeAssignments() {
+  return sectionTitle("Assignments", "Resources uploaded by your administrator") +
+    `<div id="trainee-doc-list">Loading...</div>`;
+}
+
+async function loadTraineeDocs() {
+  const res = await fetch('http://localhost:3001/api/documents');
+  const docs = await res.json();
+  const html = docs.map(d => `
+    <div style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid #ddd;border-radius:6px;margin-bottom:8px">
+      <span>📄 ${d.originalName}</span>
+      <a href="http://localhost:3001/uploads/${d.fileName}" target="_blank"
+         style="margin-left:auto;padding:6px 14px;background:#2980b9;color:white;border-radius:4px;text-decoration:none">👁 View</a>
+      <a href="http://localhost:3001/uploads/${d.fileName}" download="${d.originalName}"
+         style="padding:6px 14px;background:#27ae60;color:white;border-radius:4px;text-decoration:none">⬇ Download</a>
+    </div>`).join('') || '<p style="color:#999">No assignments yet.</p>';
+  document.getElementById('trainee-doc-list').innerHTML = html;
+}
+
+</script>
+</body>
+</html>
